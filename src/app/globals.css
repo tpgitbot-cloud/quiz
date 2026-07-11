@@ -1,0 +1,42 @@
+@import "tailwindcss";
+
+@layer utilities {
+  .no-select {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+  }
+}
+
+/* Secure Exam Print Blocker */
+@media print {
+  .secure-exam-container {
+    display: none !important;
+  }
+  body::before {
+    content: "UNAUTHORIZED EXAMINATION PRINT / RECORDING VIOLATION";
+    display: block;
+    font-size: 24px;
+    font-weight: bold;
+    color: red;
+    text-align: center;
+    padding: 100px;
+  }
+}
+
+/* Custom smooth scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
