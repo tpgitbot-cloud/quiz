@@ -15,6 +15,8 @@ function getPool(): Pool {
     }
     globalForDb.__arenaNextJsPostgresqlPool = new Pool({
       connectionString: databaseUrl,
+      ssl: { rejectUnauthorized: false },
+      max: 1,
     });
   }
   return globalForDb.__arenaNextJsPostgresqlPool;
