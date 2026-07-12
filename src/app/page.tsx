@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ShieldCheck,
@@ -13,6 +13,8 @@ import {
   Key,
   Clock,
   Sparkles,
+  Maximize2,
+  Download,
 } from 'lucide-react';
 import { QuizQuestion } from '@/db/schema';
 
@@ -45,6 +47,8 @@ export default function LandingPage() {
   const [facultyPassword, setFacultyPassword] = useState('password123');
   const [authError, setAuthError] = useState('');
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState<Event | null>(null);
   const googleButtonRef = React.useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -74,6 +78,21 @@ export default function LandingPage() {
     }
   }, [showLoginModal]);
 
+  useEffect(() => {
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  useEffect(() => {
+    const handler = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', handler);
+    return () => document.removeEventListener('fullscreenchange', handler);
+  }, []);
+
   const handleGoogleLogin = async (response: { credential: string }) => {
     if (!response.credential) {
       setAuthError('Google sign-in failed');
@@ -99,6 +118,24 @@ export default function LandingPage() {
       setIsLoggingIn(false);
     }
   };
+
+  const toggleFullscreen = useCallback(async () => {
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+      } else {
+        await document.exitFullscreen();
+      }
+    } catch {}
+  }, []);
+
+  const handleInstall = useCallback(async () => {
+    if (installPrompt) {
+      (installPrompt as any).prompt();
+      const result = await (installPrompt as any).userChoice;
+      if (result.outcome === 'accepted') setInstallPrompt(null);
+    }
+  }, [installPrompt]);
 
   const handleFacultyLogin = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -163,6 +200,22 @@ export default function LandingPage() {
           </div>
 
           <div className="flex items-center space-x-4">
+            <button
+              onClick={toggleFullscreen}
+              title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+              className="p-2 text-slate-500 hover:text-indigo-600 transition-colors rounded-lg hover:bg-slate-100"
+            >
+              <Maximize2 className="w-4 h-4" />
+            </button>
+            {installPrompt && (
+              <button
+                onClick={handleInstall}
+                className="p-2 text-slate-500 hover:text-emerald-600 transition-colors rounded-lg hover:bg-slate-100"
+                title="Install App"
+              >
+                <Download className="w-4 h-4" />
+              </button>
+            )}
             <button
               onClick={() => setShowLoginModal(true)}
               className="px-4 py-2 text-sm font-semibold text-slate-700 hover:text-indigo-600 transition-colors flex items-center space-x-1.5"

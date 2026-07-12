@@ -11,6 +11,8 @@ import {
   User,
   ShieldCheck,
   Building,
+  Maximize2,
+  Download,
 } from 'lucide-react';
 
 interface UserInfo {
@@ -25,6 +27,8 @@ export default function FacultyLayout({ children }: { children: React.ReactNode 
   const router = useRouter();
   const pathname = usePathname();
   const [user, setUser] = useState<UserInfo | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState<Event | null>(null);
 
   useEffect(() => {
     fetch('/api/auth/me')
@@ -51,6 +55,33 @@ export default function FacultyLayout({ children }: { children: React.ReactNode 
       })
       .catch(() => router.push('/'));
   }, [router]);
+
+  useEffect(() => {
+    const handler = (e: Event) => { e.preventDefault(); setInstallPrompt(e); };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  useEffect(() => {
+    const handler = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', handler);
+    return () => document.removeEventListener('fullscreenchange', handler);
+  }, []);
+
+  const toggleFullscreen = async () => {
+    try {
+      if (!document.fullscreenElement) await document.documentElement.requestFullscreen();
+      else await document.exitFullscreen();
+    } catch {}
+  };
+
+  const handleInstall = async () => {
+    if (installPrompt) {
+      (installPrompt as any).prompt();
+      const result = await (installPrompt as any).userChoice;
+      if (result.outcome === 'accepted') setInstallPrompt(null);
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -108,7 +139,23 @@ export default function FacultyLayout({ children }: { children: React.ReactNode 
             </div>
 
             {/* Right Profile & Actions */}
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={toggleFullscreen}
+                title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+                className="p-2 text-slate-400 hover:text-white transition-colors rounded-lg hover:bg-slate-800"
+              >
+                <Maximize2 className="w-4 h-4" />
+              </button>
+              {installPrompt && (
+                <button
+                  onClick={handleInstall}
+                  className="p-2 text-slate-400 hover:text-emerald-400 transition-colors rounded-lg hover:bg-slate-800"
+                  title="Install App"
+                >
+                  <Download className="w-4 h-4" />
+                </button>
+              )}
               {user && (
                 <div className="hidden lg:flex items-center space-x-3 pr-4 border-r border-slate-800">
                   <div className="w-9 h-9 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300">

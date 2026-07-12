@@ -1,0 +1,18 @@
+{
+  "name": "EduGuard - Secure Quiz Platform",
+  "short_name": "EduGuard",
+  "description": "Secure collegiate quiz platform for exams and assessments",
+  "start_url": "/",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#f8fafc",
+  "theme_color": "#4f46e5",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
