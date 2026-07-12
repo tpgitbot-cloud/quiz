@@ -25,31 +25,22 @@ interface QuizInfo {
   durationMinutes: number;
 }
 
-declare global {
-  interface Window {
-    google?: {
-      accounts: {
-        id: {
-          initialize: (config: { client_id: string; callback: (resp: { credential: string }) => void }) => void;
-          renderButton: (el: HTMLElement, options: { theme: string; size: string; width?: number }) => void;
-        };
-      };
-    };
-  }
-}
-
 export default function LandingPage() {
   const router = useRouter();
   const [activeQuizzes, setActiveQuizzes] = useState<QuizInfo[]>([]);
   const [studentQuizIdInput, setStudentQuizIdInput] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
   const [facultyEmail, setFacultyEmail] = useState('faculty@college.edu');
   const [facultyPassword, setFacultyPassword] = useState('password123');
+  const [signupName, setSignupName] = useState('');
+  const [signupEmail, setSignupEmail] = useState('');
+  const [signupPassword, setSignupPassword] = useState('');
+  const [signupDepartment, setSignupDepartment] = useState('Computer Science & Engineering');
   const [authError, setAuthError] = useState('');
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<Event | null>(null);
-  const googleButtonRef = React.useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetch('/api/quizzes')
@@ -61,22 +52,6 @@ export default function LandingPage() {
       })
       .catch((err) => console.error('Failed to load active quizzes:', err));
   }, []);
-
-  useEffect(() => {
-    if (showLoginModal && googleButtonRef.current && window.google && process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID) {
-      try {
-        window.google.accounts.id.initialize({
-          client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
-          callback: handleGoogleLogin,
-        });
-        window.google.accounts.id.renderButton(googleButtonRef.current, {
-          theme: 'outline',
-          size: 'large',
-          width: 320,
-        });
-      } catch {}
-    }
-  }, [showLoginModal]);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -93,24 +68,26 @@ export default function LandingPage() {
     return () => document.removeEventListener('fullscreenchange', handler);
   }, []);
 
-  const handleGoogleLogin = async (response: { credential: string }) => {
-    if (!response.credential) {
-      setAuthError('Google sign-in failed');
-      return;
-    }
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
     setIsLoggingIn(true);
     setAuthError('');
     try {
-      const res = await fetch('/api/auth/google', {
+      const res = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ credential: response.credential }),
+        body: JSON.stringify({
+          name: signupName,
+          email: signupEmail,
+          password: signupPassword,
+          department: signupDepartment,
+        }),
       });
       const data = await res.json();
       if (res.ok) {
         router.push('/faculty');
       } else {
-        setAuthError(data.error || 'Google login failed');
+        setAuthError(data.error || 'Signup failed');
         setIsLoggingIn(false);
       }
     } catch {
@@ -527,7 +504,7 @@ export default function LandingPage() {
         </div>
       </footer>
 
-      {/* Faculty Secure Login Modal */}
+      {/* Faculty Secure Authentication Modal */}
       {showLoginModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-slate-200 relative animate-in fade-in zoom-in-95 duration-150">
@@ -536,7 +513,9 @@ export default function LandingPage() {
                 <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold">
                   <Key className="w-4 h-4" />
                 </div>
-                <h3 className="text-xl font-black text-slate-900">Faculty Secure Authentication</h3>
+                <h3 className="text-xl font-black text-slate-900">
+                  {authMode === 'login' ? 'Faculty Login' : 'Create Account'}
+                </h3>
               </div>
               <button
                 onClick={() => setShowLoginModal(false)}
@@ -546,87 +525,158 @@ export default function LandingPage() {
               </button>
             </div>
 
-            <div className="mb-6 p-3 bg-indigo-50 border border-indigo-100 rounded-xl text-xs text-indigo-800 flex items-start space-x-2">
-              <HelpCircle className="w-4 h-4 text-indigo-600 flex-shrink-0 mt-0.5" />
-              <div>
-                <span className="font-bold block mb-0.5">Quick Collegiate Access:</span>
-                <span>
-                  You can use the built-in default faculty account below to instantly evaluate and access all tools.
-                </span>
-              </div>
-            </div>
-
-            <form onSubmit={handleFacultyLogin} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold uppercase text-slate-700 mb-1">Faculty College Email</label>
-                <input
-                  type="email"
-                  value={facultyEmail}
-                  onChange={(e) => setFacultyEmail(e.target.value)}
-                  required
-                  placeholder="name@college.edu"
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase text-slate-700 mb-1">Secure Password</label>
-                <input
-                  type="password"
-                  value={facultyPassword}
-                  onChange={(e) => setFacultyPassword(e.target.value)}
-                  required
-                  placeholder="••••••••••••"
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-
-              {authError && (
-                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl font-semibold">
-                  ⚠️ {authError}
-                </div>
-              )}
-
-              <div className="pt-2">
-                <button
-                  type="submit"
-                  disabled={isLoggingIn}
-                  className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-sm shadow-md shadow-indigo-200 transition-all flex items-center justify-center space-x-2 disabled:bg-slate-300"
-                >
-                  {isLoggingIn ? (
-                    <span>Authenticating Credentials...</span>
-                  ) : (
-                    <>
-                      <span>Secure Log In</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
-
-            {process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID && (
-              <div className="mt-6 pt-4 border-t border-slate-100">
-                <div className="text-xs font-bold uppercase text-slate-400 text-center mb-3">Or continue with</div>
-                <div ref={googleButtonRef} className="flex justify-center"></div>
-              </div>
-            )}
-
-            <div className="mt-4 text-center">
+            {/* Login / Signup Tabs */}
+            <div className="flex bg-slate-100 rounded-xl p-1 mb-6">
               <button
-                type="button"
-                onClick={() => {
-                  setFacultyEmail('admin@college.edu');
-                  setFacultyPassword('password123');
-                }}
-                className="text-xs text-indigo-600 hover:underline font-bold"
+                onClick={() => { setAuthMode('login'); setAuthError(''); }}
+                className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${
+                  authMode === 'login' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                }`}
               >
-                Switch to Demo Admin Account
+                Sign In
+              </button>
+              <button
+                onClick={() => { setAuthMode('signup'); setAuthError(''); }}
+                className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${
+                  authMode === 'signup' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                Sign Up
               </button>
             </div>
+
+            {authMode === 'login' ? (
+              <form onSubmit={handleFacultyLogin} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase text-slate-700 mb-1">Email</label>
+                  <input
+                    type="email"
+                    value={facultyEmail}
+                    onChange={(e) => setFacultyEmail(e.target.value)}
+                    required
+                    placeholder="name@college.edu"
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase text-slate-700 mb-1">Password</label>
+                  <input
+                    type="password"
+                    value={facultyPassword}
+                    onChange={(e) => setFacultyPassword(e.target.value)}
+                    required
+                    placeholder="••••••••••••"
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+
+                {authError && (
+                  <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl font-semibold">
+                    ⚠️ {authError}
+                  </div>
+                )}
+
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    disabled={isLoggingIn}
+                    className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-sm shadow-md shadow-indigo-200 transition-all flex items-center justify-center space-x-2 disabled:bg-slate-300"
+                  >
+                    {isLoggingIn ? (
+                      <span>Signing in...</span>
+                    ) : (
+                      <>
+                        <span>Sign In</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                <div className="text-center pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFacultyEmail('admin@college.edu');
+                      setFacultyPassword('password123');
+                    }}
+                    className="text-xs text-indigo-600 hover:underline font-bold"
+                  >
+                    Demo: Switch to Admin Account
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <form onSubmit={handleSignup} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase text-slate-700 mb-1">Full Name</label>
+                  <input
+                    type="text"
+                    value={signupName}
+                    onChange={(e) => setSignupName(e.target.value)}
+                    required
+                    placeholder="Dr. Jane Smith"
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase text-slate-700 mb-1">Email</label>
+                  <input
+                    type="email"
+                    value={signupEmail}
+                    onChange={(e) => setSignupEmail(e.target.value)}
+                    required
+                    placeholder="name@college.edu"
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase text-slate-700 mb-1">Password</label>
+                  <input
+                    type="password"
+                    value={signupPassword}
+                    onChange={(e) => setSignupPassword(e.target.value)}
+                    required
+                    minLength={4}
+                    placeholder="Choose a password"
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase text-slate-700 mb-1">Department</label>
+                  <input
+                    type="text"
+                    value={signupDepartment}
+                    onChange={(e) => setSignupDepartment(e.target.value)}
+                    placeholder="Computer Science & Engineering"
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+
+                {authError && (
+                  <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl font-semibold">
+                    ⚠️ {authError}
+                  </div>
+                )}
+
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    disabled={isLoggingIn}
+                    className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-sm shadow-md shadow-indigo-200 transition-all flex items-center justify-center space-x-2 disabled:bg-slate-300"
+                  >
+                    {isLoggingIn ? (
+                      <span>Creating account...</span>
+                    ) : (
+                      <>
+                        <span>Create Account</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}
-    </div>
-  );
-}
