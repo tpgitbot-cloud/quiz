@@ -23,6 +23,19 @@ interface QuizInfo {
   durationMinutes: number;
 }
 
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (config: { client_id: string; callback: (resp: { credential: string }) => void }) => void;
+          renderButton: (el: HTMLElement, options: { theme: string; size: string; width?: number }) => void;
+        };
+      };
+    };
+  }
+}
+
 export default function LandingPage() {
   const router = useRouter();
   const [activeQuizzes, setActiveQuizzes] = useState<QuizInfo[]>([]);
@@ -32,9 +45,9 @@ export default function LandingPage() {
   const [facultyPassword, setFacultyPassword] = useState('password123');
   const [authError, setAuthError] = useState('');
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const googleButtonRef = React.useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Fetch active quizzes for the student quick selector
     fetch('/api/quizzes')
       .then((res) => res.json())
       .then((data) => {
@@ -44,6 +57,48 @@ export default function LandingPage() {
       })
       .catch((err) => console.error('Failed to load active quizzes:', err));
   }, []);
+
+  useEffect(() => {
+    if (showLoginModal && googleButtonRef.current && window.google && process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID) {
+      try {
+        window.google.accounts.id.initialize({
+          client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
+          callback: handleGoogleLogin,
+        });
+        window.google.accounts.id.renderButton(googleButtonRef.current, {
+          theme: 'outline',
+          size: 'large',
+          width: 320,
+        });
+      } catch {}
+    }
+  }, [showLoginModal]);
+
+  const handleGoogleLogin = async (response: { credential: string }) => {
+    if (!response.credential) {
+      setAuthError('Google sign-in failed');
+      return;
+    }
+    setIsLoggingIn(true);
+    setAuthError('');
+    try {
+      const res = await fetch('/api/auth/google', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credential: response.credential }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        router.push('/faculty');
+      } else {
+        setAuthError(data.error || 'Google login failed');
+        setIsLoggingIn(false);
+      }
+    } catch {
+      setAuthError('An unexpected network error occurred');
+      setIsLoggingIn(false);
+    }
+  };
 
   const handleFacultyLogin = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -497,7 +552,14 @@ export default function LandingPage() {
               </div>
             </form>
 
-            <div className="mt-6 pt-4 border-t border-slate-100 text-center">
+            {process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID && (
+              <div className="mt-6 pt-4 border-t border-slate-100">
+                <div className="text-xs font-bold uppercase text-slate-400 text-center mb-3">Or continue with</div>
+                <div ref={googleButtonRef} className="flex justify-center"></div>
+              </div>
+            )}
+
+            <div className="mt-4 text-center">
               <button
                 type="button"
                 onClick={() => {
