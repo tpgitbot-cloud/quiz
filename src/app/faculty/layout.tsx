@@ -80,6 +80,8 @@ export default function FacultyLayout({ children }: { children: React.ReactNode 
       (installPrompt as any).prompt();
       const result = await (installPrompt as any).userChoice;
       if (result.outcome === 'accepted') setInstallPrompt(null);
+    } else {
+      alert('To install this app, open this page in Chrome or Edge browser and look for the Install icon in the address bar.');
     }
   };
 
@@ -147,15 +149,13 @@ export default function FacultyLayout({ children }: { children: React.ReactNode 
               >
                 <Maximize2 className="w-4 h-4" />
               </button>
-              {installPrompt && (
-                <button
-                  onClick={handleInstall}
-                  className="p-2 text-slate-400 hover:text-emerald-400 transition-colors rounded-lg hover:bg-slate-800"
-                  title="Install App"
-                >
-                  <Download className="w-4 h-4" />
-                </button>
-              )}
+              <button
+                onClick={handleInstall}
+                className="p-2 text-slate-400 hover:text-emerald-400 transition-colors rounded-lg hover:bg-slate-800"
+                title="Install App"
+              >
+                <Download className="w-4 h-4" />
+              </button>
               {user && (
                 <div className="hidden lg:flex items-center space-x-3 pr-4 border-r border-slate-800">
                   <div className="w-9 h-9 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300">
